@@ -253,7 +253,7 @@
     <script type="module">
         // Import Firebase modules
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const { jsPDF } = window.jspdf;
@@ -345,7 +345,7 @@
         async function initializeFirebase() {
              try {
                 // IMPORTANT: Replace this with your actual Firebase config object
-                const firebaseConfig = {
+             const firebaseConfig = {
   apiKey: "AIzaSyDNaMY1GkYi96K1h9LWhRtldeN8irLol0k",
   authDomain: "my-marine-app-c1f57.firebaseapp.com",
   projectId: "my-marine-app-c1f57",
@@ -354,36 +354,29 @@
   appId: "1:300110302332:web:a2299c71a26e72323acdf9"
 };
                 
-                // Use a stable identifier for the app
                 const appId = firebaseConfig.projectId || 'default-app-id';
 
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
 
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        // User is signed in.
-                        console.log("Firebase Auth State Changed: User is signed in.", user.uid);
-                        publicOrdersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-                        publicSettingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-                        listenForOrders();
-                        listenForProducts();
-                        loadingIndicator.textContent = 'Connected to Shared Database';
-                        setTimeout(() => loadingIndicator.style.display = 'none', 1500);
-                    } else {
-                        // User is signed out. Attempt to sign in anonymously.
-                        console.log("Firebase Auth State Changed: User is signed out. Attempting anonymous sign-in.");
-                        signInAnonymously(auth).catch(error => {
-                            console.error("Anonymous sign-in failed:", error);
-                            loadingIndicator.textContent = 'Connection Failed. Could not sign in.';
-                        });
-                    }
-                });
+                const userCredential = await signInAnonymously(auth);
+                const user = userCredential.user;
+
+                if (user) {
+                    publicOrdersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+                    publicSettingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+                    listenForOrders();
+                    listenForProducts();
+                    loadingIndicator.textContent = 'Connected to Shared Database';
+                    setTimeout(() => loadingIndicator.style.display = 'none', 1500);
+                } else {
+                    throw new Error("Anonymous sign-in failed.");
+                }
 
             } catch (error) {
                 console.error("Firebase Initialization Error: ", error);
-                loadingIndicator.textContent = 'Connection Failed. Check Firebase config and authorized domains.';
+                loadingIndicator.textContent = 'Connection Failed. Check Firebase config and all security settings.';
             }
         }
 
@@ -798,23 +791,19 @@
             reportsView.classList.add('hidden');
         });
         
-        function generateReportHTML(title, data, forPdf = false) {
+        function generateReportHTML(title, data) {
             let totalIncome = 0;
-            const headerClasses = forPdf ? 'bg-gray-200' : 'bg-gray-200 dark:bg-gray-700';
-            const borderClasses = forPdf ? 'border-gray-400' : 'border-gray-300 dark:border-gray-600';
-            const footerClasses = forPdf ? 'bg-gray-100' : 'bg-gray-100 dark:bg-gray-700';
-
             let tableHTML = `
                 <h3 class="text-xl font-bold mb-4">${title}</h3>
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="${headerClasses}">
-                            <th class="p-2 border ${borderClasses}">Date</th>
-                            <th class="p-2 border ${borderClasses}">Customer</th>
-                            <th class="p-2 border ${borderClasses}">Product</th>
-                            <th class="p-2 border ${borderClasses} text-right">Qty</th>
-                            <th class="p-2 border ${borderClasses} text-right">Price</th>
-                            <th class="p-2 border ${borderClasses} text-right">Total</th>
+                        <tr class="bg-gray-200">
+                            <th class="p-2 border border-gray-400">Date</th>
+                            <th class="p-2 border border-gray-400">Customer</th>
+                            <th class="p-2 border border-gray-400">Product</th>
+                            <th class="p-2 border border-gray-400 text-right">Qty</th>
+                            <th class="p-2 border border-gray-400 text-right">Price</th>
+                            <th class="p-2 border border-gray-400 text-right">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -823,21 +812,21 @@
                 totalIncome += order.totalAmount;
                 tableHTML += `
                     <tr>
-                        <td class="p-2 border ${borderClasses}">${order.date}</td>
-                        <td class="p-2 border ${borderClasses}">${order.customerName}</td>
-                        <td class="p-2 border ${borderClasses}">${order.productName}</td>
-                        <td class="p-2 border ${borderClasses} text-right">${order.quantity}</td>
-                        <td class="p-2 border ${borderClasses} text-right">₱${order.pricePerItem.toFixed(2)}</td>
-                        <td class="p-2 border ${borderClasses} text-right">₱${order.totalAmount.toFixed(2)}</td>
+                        <td class="p-2 border border-gray-400">${order.date}</td>
+                        <td class="p-2 border border-gray-400">${order.customerName}</td>
+                        <td class="p-2 border border-gray-400">${order.productName}</td>
+                        <td class="p-2 border border-gray-400 text-right">${order.quantity}</td>
+                        <td class="p-2 border border-gray-400 text-right">₱${order.pricePerItem.toFixed(2)}</td>
+                        <td class="p-2 border border-gray-400 text-right">₱${order.totalAmount.toFixed(2)}</td>
                     </tr>
                 `;
             });
             tableHTML += `
                     </tbody>
                     <tfoot>
-                        <tr class="font-bold ${footerClasses}">
-                            <td colspan="5" class="p-2 border ${borderClasses} text-right">Total Income for this Period:</td>
-                            <td class="p-2 border ${borderClasses} text-right">₱${totalIncome.toFixed(2)}</td>
+                        <tr class="font-bold bg-gray-100">
+                            <td colspan="5" class="p-2 border border-gray-400 text-right">Total Income for this Period:</td>
+                            <td class="p-2 border border-gray-400 text-right">₱${totalIncome.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -855,7 +844,7 @@
             const reportTitle = `Order Report from ${startDate} to ${endDate}`;
             const filteredOrders = Object.values(orders).filter(order => order.date >= startDate && order.date <= endDate);
             
-            const reportHTML = generateReportHTML(reportTitle, filteredOrders, false);
+            const reportHTML = generateReportHTML(reportTitle, filteredOrders).replace(/dark:[^ ]*/g, '');
             const container = document.createElement('div');
             container.innerHTML = `
                 <div class="flex justify-between items-center mb-4">
@@ -878,11 +867,11 @@
 
         function downloadPdf(title, data) {
             const printArea = document.getElementById('print-area');
-            const reportHTML = generateReportHTML(title, data, true);
+            const reportHTML = generateReportHTML(title, data);
             
             // Force light mode and black text for PDF generation for readability
             printArea.innerHTML = `
-                <style> #pdf-content * { color: #000000 !important; } </style>
+                <style> #pdf-content, #pdf-content * { color: #000000 !important; } </style>
                 <div id="pdf-content" class="p-8 bg-white" style="width: 1024px;">
                     ${reportHTML}
                 </div>
@@ -954,7 +943,7 @@
             
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
-            const apiKey = "const apiKey = "YOUR_GEMINI_API_KEY_HERE";";
+            const apiKey = ""; // IMPORTANT: Replace with your actual Gemini API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {
@@ -990,7 +979,7 @@
             
             let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
             const payload = { contents: chatHistory };
-            const apiKey = "";
+            const apiKey = ""; // IMPORTANT: Replace with your actual Gemini API Key
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {

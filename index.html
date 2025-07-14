@@ -345,7 +345,7 @@
         async function initializeFirebase() {
              try {
                 // IMPORTANT: Replace this with your actual Firebase config object
-             const firebaseConfig = {
+               const firebaseConfig = {
   apiKey: "AIzaSyDNaMY1GkYi96K1h9LWhRtldeN8irLol0k",
   authDomain: "my-marine-app-c1f57.firebaseapp.com",
   projectId: "my-marine-app-c1f57",
@@ -871,7 +871,7 @@
             
             // Force light mode and black text for PDF generation for readability
             printArea.innerHTML = `
-                <style> #pdf-content, #pdf-content * { color: #000000 !important; } </style>
+                <style> #pdf-content * { color: #000000 !important; } </style>
                 <div id="pdf-content" class="p-8 bg-white" style="width: 1024px;">
                     ${reportHTML}
                 </div>

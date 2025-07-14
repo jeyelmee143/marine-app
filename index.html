@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en" class="light"> <!-- Start with light mode as default -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>558 Marine Product Calendar Order Tracking App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Removed fixed calendar grid style to use Tailwind classes for responsiveness */
+        .calendar-day {
+            min-height: 120px;
+            transition: background-color 0.2s;
+        }
+        .day-header {
+            font-weight: 600;
+        }
+        .tab-button.active {
+            border-bottom-color: #4f46e5;
+            color: #4f46e5;
+        }
+        html.dark .tab-button.active {
+             border-bottom-color: #818cf8;
+             color: #818cf8;
+        }
+        .modal {
+            transition: opacity 0.25s ease;
+        }
+        .modal-content {
+            transition: transform 0.25s ease;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <div class="container mx-auto p-4 lg:p-8">
+        <header class="relative text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">🔖 558 Marine Product Calendar Order Tracking App</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Track orders, income, and customer history with ease. (Collaborative Cloud Version)</p>
+            <div id="loading-indicator" class="mt-4 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <i class="fas fa-spinner fa-spin mr-2"></i>
+                <span>Connecting to shared database...</span>
+            </div>
+            <!-- Dark Mode Toggle -->
+            <button id="theme-toggle" type="button" class="absolute top-0 right-0 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-1.414 8.486a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+        </header>
+
+        <!-- Main Content Area -->
+        <div id="main-content">
+            <!-- Dashboard -->
+            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 no-print">
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Today's Income</h3>
+                    <p id="daily-total" class="text-2xl font-semibold text-green-600 dark:text-green-400">₱0.00</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">This Week's Income</h3>
+                    <p id="weekly-total" class="text-2xl font-semibold">₱0.00</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">This Month's Income</h3>
+                    <p id="monthly-total" class="text-2xl font-semibold">₱0.00</p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                    <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">This Year's Income</h3>
+                    <p id="yearly-total" class="text-2xl font-semibold">₱0.00</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Calendar -->
+                <div class="w-full lg:w-2/3">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+                        <div class="flex justify-between items-center mb-4 no-print">
+                            <button id="prev-month" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fas fa-chevron-left"></i></button>
+                            <h2 id="current-month-year" class="text-xl font-semibold"></h2>
+                            <button id="next-month" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="day-header text-center text-sm text-gray-600 dark:text-gray-400 mb-2 hidden sm:grid grid-cols-7">
+                            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                        </div>
+                        <div id="calendar-body" class="grid grid-cols-1 sm:grid-cols-7"></div>
+                    </div>
+                </div>
+
+                <!-- Side Panel: Search, Orders & Actions -->
+                <div class="w-full lg:w-1/3 no-print">
+                     <!-- Customer Search -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4 border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold mb-4 flex items-center"><i class="fas fa-search mr-2 text-gray-500 dark:text-gray-400"></i>Customer Search</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="customer-search-input" placeholder="Enter customer name..." class="flex-grow mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <button id="customer-search-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+                        <div class="border-b border-gray-200 dark:border-gray-700">
+                            <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                                <button id="tab-recent" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm active">Recent Orders</button>
+                                <button id="tab-search" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Search Results</button>
+                            </nav>
+                        </div>
+                        <div id="recent-orders-list" class="mt-4 space-y-3 h-80 overflow-y-auto">
+                            <p class="text-gray-500 dark:text-gray-400">No recent orders.</p>
+                        </div>
+                        <div id="search-results-list" class="mt-4 space-y-3 h-80 overflow-y-auto hidden">
+                            <p class="text-gray-500 dark:text-gray-400">Enter a customer name to search.</p>
+                        </div>
+                    </div>
+                     <div id="actions-panel" class="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold mb-4">Actions</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="export-csv" class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"><i class="fas fa-file-csv mr-2"></i>Export CSV</button>
+                            <button id="download-pdf-month" class="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors flex items-center justify-center"><i class="fas fa-file-pdf mr-2"></i>PDF Month</button>
+                            <button id="reports-btn" class="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center"><i class="fas fa-chart-line mr-2"></i>Reports</button>
+                            <button id="settings-btn" class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center"><i class="fas fa-cog mr-2"></i>Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports View -->
+        <div id="reports-view" class="hidden">
+            <button id="back-to-main-btn" class="mb-4 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"><i class="fas fa-arrow-left mr-2"></i>Back to Calendar</button>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                <h2 class="text-2xl font-bold mb-4">Generate Report</h2>
+                <div class="flex flex-wrap items-end gap-4 mb-6">
+                    <div>
+                        <label for="start-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
+                        <input type="date" id="start-date" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="end-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date</label>
+                        <input type="date" id="end-date" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm">
+                    </div>
+                    <button id="generate-report-btn" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700">Generate Report</button>
+                </div>
+                <div id="report-output">
+                    <p class="text-gray-500 dark:text-gray-400">Please select a date range and click "Generate Report".</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="order-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden no-print modal">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md m-4 modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Add/Edit Order for <span id="modal-date"></span></h2>
+                <button id="close-order-modal" class="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <form id="order-form">
+                <input type="hidden" id="order-id">
+                <input type="hidden" id="order-date">
+                <div class="mb-4">
+                    <label for="customer-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+                    <input type="text" id="customer-name" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div class="mb-4">
+                    <label for="product-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product</label>
+                    <select id="product-select" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="order-quantity" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Quantity</label>
+                    <input type="number" id="order-quantity" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" min="1" step="any" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Total Amount</label>
+                    <p id="total-amount-display" class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">₱0.00</p>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="delete-order" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Delete</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Save Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden no-print modal">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl m-4 modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Product Settings</h2>
+                <button id="close-settings-modal" class="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-medium mb-2">Add/Edit Product</h3>
+                    <form id="product-form" class="space-y-4">
+                        <input type="hidden" id="product-id">
+                        <div>
+                            <label for="product-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Product Name</label>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="product-name" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md" required>
+                                <button type="button" id="generate-desc-btn" class="p-2 text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl rounded-lg" title="✨ Suggest Description">✨</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="product-price" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Price (₱)</label>
+                            <input type="number" id="product-price" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md" min="0" step="0.01" required>
+                        </div>
+                        <div>
+                             <label for="product-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+                             <textarea id="product-description" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-md"></textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Save Product</button>
+                            <button type="button" id="clear-product-form" class="w-full bg-gray-300 dark:bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500">Clear</button>
+                        </div>
+                    </form>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium mb-2">Product List</h3>
+                    <div id="product-list" class="space-y-2 h-64 overflow-y-auto border dark:border-gray-700 p-2 rounded-md">
+                        <p class="text-gray-500 dark:text-gray-400">No products defined.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Print Area -->
+    <div id="print-area" class="hidden"></div>
+    
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, setDoc, deleteDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const { jsPDF } = window.jspdf;
+
+        // --- THEME TOGGLE ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark');
+                themeToggleLightIcon.classList.remove('hidden');
+                themeToggleDarkIcon.classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeToggleDarkIcon.classList.remove('hidden');
+                themeToggleLightIcon.classList.add('hidden');
+            }
+        };
+
+        const savedTheme = localStorage.getItem('color-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme) {
+            applyTheme(savedTheme);
+        } else if (prefersDark) {
+            applyTheme('dark');
+        } else {
+            applyTheme('light');
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            localStorage.setItem('color-theme', newTheme);
+            applyTheme(newTheme);
+        });
+
+
+        // --- ELEMENT CACHE ---
+        const mainContent = document.getElementById('main-content');
+        const reportsView = document.getElementById('reports-view');
+        const reportsBtn = document.getElementById('reports-btn');
+        const backToMainBtn = document.getElementById('back-to-main-btn');
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsModalBtn = document.getElementById('close-settings-modal');
+        const productForm = document.getElementById('product-form');
+        const productListDiv = document.getElementById('product-list');
+        const productIdInput = document.getElementById('product-id');
+        const productNameInput = document.getElementById('product-name');
+        const productPriceInput = document.getElementById('product-price');
+        const productDescriptionInput = document.getElementById('product-description');
+        const generateDescBtn = document.getElementById('generate-desc-btn');
+        const clearProductFormBtn = document.getElementById('clear-product-form');
+        const productSelect = document.getElementById('product-select');
+        const orderQuantityInput = document.getElementById('order-quantity');
+        const totalAmountDisplay = document.getElementById('total-amount-display');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const reportOutput = document.getElementById('report-output');
+
+        const calendarBody = document.getElementById('calendar-body');
+        const currentMonthYear = document.getElementById('current-month-year');
+        const prevMonthBtn = document.getElementById('prev-month');
+        const nextMonthBtn = document.getElementById('next-month');
+        const orderModal = document.getElementById('order-modal');
+        const closeOrderModalBtn = document.getElementById('close-order-modal');
+        const orderForm = document.getElementById('order-form');
+        const modalDateEl = document.getElementById('modal-date');
+        const orderIdInput = document.getElementById('order-id');
+        const orderDateInput = document.getElementById('order-date');
+        const deleteOrderBtn = document.getElementById('delete-order');
+        const exportCsvBtn = document.getElementById('export-csv');
+        const downloadPdfMonthBtn = document.getElementById('download-pdf-month');
+        const searchInput = document.getElementById('customer-search-input');
+        const searchBtn = document.getElementById('customer-search-btn');
+        const recentOrdersList = document.getElementById('recent-orders-list');
+        const searchResultsList = document.getElementById('search-results-list');
+        const tabRecent = document.getElementById('tab-recent');
+        const tabSearch = document.getElementById('tab-search');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        let currentDate = new Date();
+        let orders = {};
+        let products = {};
+        let db, auth;
+        let publicOrdersRef, publicSettingsRef;
+
+        async function initializeFirebase() {
+             try {
+                // IMPORTANT: Replace this with your actual Firebase config object
+                const firebaseConfig = {
+  apiKey: "AIzaSyDNaMY1GkYi96K1h9LWhRtldeN8irLol0k",
+  authDomain: "my-marine-app-c1f57.firebaseapp.com",
+  projectId: "my-marine-app-c1f57",
+  storageBucket: "my-marine-app-c1f57.firebasestorage.app",
+  messagingSenderId: "300110302332",
+  appId: "1:300110302332:web:a2299c71a26e72323acdf9"
+};
+                
+                // Use a stable identifier for the app
+                const appId = firebaseConfig.projectId || 'default-app-id';
+
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        // User is signed in.
+                        console.log("Firebase Auth State Changed: User is signed in.", user.uid);
+                        publicOrdersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+                        publicSettingsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+                        listenForOrders();
+                        listenForProducts();
+                        loadingIndicator.textContent = 'Connected to Shared Database';
+                        setTimeout(() => loadingIndicator.style.display = 'none', 1500);
+                    } else {
+                        // User is signed out. Attempt to sign in anonymously.
+                        console.log("Firebase Auth State Changed: User is signed out. Attempting anonymous sign-in.");
+                        signInAnonymously(auth).catch(error => {
+                            console.error("Anonymous sign-in failed:", error);
+                            loadingIndicator.textContent = 'Connection Failed. Could not sign in.';
+                        });
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Error: ", error);
+                loadingIndicator.textContent = 'Connection Failed. Check Firebase config and authorized domains.';
+            }
+        }
+
+        // --- DATA FUNCTIONS ---
+        function listenForOrders() {
+            onSnapshot(query(publicOrdersRef), snapshot => {
+                orders = {};
+                snapshot.forEach(doc => orders[doc.id] = { id: doc.id, ...doc.data() });
+                renderCalendar();
+            });
+        }
+
+        function listenForProducts() {
+            onSnapshot(query(publicSettingsRef), snapshot => {
+                products = {};
+                snapshot.forEach(doc => products[doc.id] = { id: doc.id, ...doc.data() });
+                renderProductList();
+                populateProductDropdown();
+            });
+        }
+
+        async function saveOrder(orderData) {
+            try {
+                if (orderData.id) {
+                    await setDoc(doc(publicOrdersRef, orderData.id), orderData);
+                } else {
+                    await addDoc(publicOrdersRef, orderData);
+                }
+            } catch (e) { console.error("Error saving order: ", e); }
+        }
+        
+        async function deleteOrder(orderId) {
+            try {
+                await deleteDoc(doc(publicOrdersRef, orderId));
+            } catch (e) { console.error("Error deleting order: ", e); }
+        }
+
+        async function saveProduct(productData) {
+            try {
+                if (productData.id) {
+                    await setDoc(doc(publicSettingsRef, productData.id), { name: productData.name, price: productData.price, description: productData.description });
+                } else {
+                    await addDoc(publicSettingsRef, { name: productData.name, price: productData.price, description: productData.description });
+                }
+            } catch(e) { console.error("Error saving product: ", e); }
+        }
+
+        async function deleteProduct(productId) {
+            try {
+                await deleteDoc(doc(publicSettingsRef, productId));
+            } catch(e) { console.error("Error deleting product: ", e); }
+        }
+
+        // --- UI & RENDER ---
+        function renderCalendar() {
+            calendarBody.innerHTML = '';
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            currentMonthYear.textContent = `${currentDate.toLocaleString('default', { month: 'long' })} ${year}`;
+
+            const ordersByDate = {};
+            Object.values(orders).forEach(order => {
+                if (!ordersByDate[order.date]) ordersByDate[order.date] = [];
+                ordersByDate[order.date].push(order);
+            });
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDayOfMonth; i++) calendarBody.appendChild(document.createElement('div'));
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                dayEl.className = 'calendar-day border border-gray-200 dark:border-gray-700 p-2 flex flex-col cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700';
+                dayEl.dataset.date = dateStr;
+
+                const dayNumberContainer = document.createElement('div');
+                dayNumberContainer.className = 'flex items-center justify-between';
+
+                const dayNumber = document.createElement('span');
+                dayNumber.className = 'font-semibold';
+                dayNumber.textContent = day;
+                
+                const dayNameSpan = document.createElement('span');
+                dayNameSpan.className = 'sm:hidden text-xs text-gray-500 dark:text-gray-400';
+                const dayOfWeek = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+                dayNameSpan.textContent = dayOfWeek;
+
+                dayNumberContainer.appendChild(dayNumber);
+                dayNumberContainer.appendChild(dayNameSpan);
+                dayEl.appendChild(dayNumberContainer);
+
+                const today = new Date();
+                if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+                    dayNumber.className += ' bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center';
+                }
+
+                const dayOrders = ordersByDate[dateStr] || [];
+                let dailyTotal = 0;
+                if (dayOrders.length > 0) {
+                    const ordersList = document.createElement('ul');
+                    ordersList.className = 'text-xs mt-1 space-y-1 overflow-y-auto max-h-20';
+                    dayOrders.forEach(order => {
+                        const li = document.createElement('li');
+                        li.textContent = `${order.customerName} - ₱${order.totalAmount.toFixed(2)}`;
+                        li.className = 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 p-1 rounded-md text-ellipsis overflow-hidden whitespace-nowrap';
+                        ordersList.appendChild(li);
+                        dailyTotal += order.totalAmount;
+                    });
+                    dayEl.appendChild(ordersList);
+                }
+                
+                if (dailyTotal > 0) {
+                    const totalEl = document.createElement('div');
+                    totalEl.className = 'mt-auto text-right text-sm font-bold text-green-600 dark:text-green-400';
+                    totalEl.textContent = `₱${dailyTotal.toFixed(2)}`;
+                    dayEl.appendChild(totalEl);
+                }
+
+                dayEl.addEventListener('click', () => openOrderModal(dateStr));
+                calendarBody.appendChild(dayEl);
+            }
+            updateDashboard();
+            updateRecentOrders();
+        }
+
+        function openOrderModal(dateStr, orderId = null) {
+            orderForm.reset();
+            orderDateInput.value = dateStr;
+            modalDateEl.textContent = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            
+            if (orderId) {
+                const order = orders[orderId];
+                if (order) {
+                    orderIdInput.value = order.id;
+                    document.getElementById('customer-name').value = order.customerName;
+                    productSelect.value = order.productId;
+                    orderQuantityInput.value = order.quantity;
+                    deleteOrderBtn.classList.remove('hidden');
+                }
+            } else {
+                orderIdInput.value = '';
+                deleteOrderBtn.classList.add('hidden');
+            }
+            updateTotalAmount();
+            orderModal.classList.remove('hidden');
+        }
+
+        function updateDashboard() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
+            let dailyTotal = 0, weeklyTotal = 0, monthlyTotal = 0, yearlyTotal = 0;
+
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+            startOfWeek.setHours(0,0,0,0);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            Object.values(orders).forEach(order => {
+                const orderDate = new Date(order.date + 'T00:00:00');
+                const amount = order.totalAmount || 0;
+                if (order.date === todayStr) dailyTotal += amount;
+                if (orderDate >= startOfWeek && orderDate <= endOfWeek) weeklyTotal += amount;
+                if (orderDate.getFullYear() === year && orderDate.getMonth() === month) monthlyTotal += amount;
+                if (orderDate.getFullYear() === year) yearlyTotal += amount;
+            });
+
+            document.getElementById('daily-total').textContent = `₱${dailyTotal.toFixed(2)}`;
+            document.getElementById('weekly-total').textContent = `₱${weeklyTotal.toFixed(2)}`;
+            document.getElementById('monthly-total').textContent = `₱${monthlyTotal.toFixed(2)}`;
+            document.getElementById('yearly-total').textContent = `₱${yearlyTotal.toFixed(2)}`;
+        }
+
+        function updateRecentOrders() {
+            recentOrdersList.innerHTML = '';
+            const allOrders = Object.values(orders);
+            allOrders.sort((a, b) => new Date(b.date) - new Date(a.date) || (b.id > a.id ? 1 : -1));
+
+            if (allOrders.length === 0) {
+                recentOrdersList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 p-4 text-center">No recent orders.</p>';
+                return;
+            }
+
+            allOrders.slice(0, 15).forEach(order => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700';
+                itemEl.innerHTML = `
+                    <p class="font-semibold">${order.customerName} - <span class="text-green-600 dark:text-green-400">₱${(order.totalAmount || 0).toFixed(2)}</span></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(order.date + 'T00:00:00').toLocaleDateString()}</p>
+                `;
+                itemEl.addEventListener('click', () => openOrderModal(order.date, order.id));
+                recentOrdersList.appendChild(itemEl);
+            });
+        }
+
+        function handleSearch() {
+            const query = searchInput.value.toLowerCase().trim();
+            searchResultsList.innerHTML = '';
+            if (!query) {
+                searchResultsList.innerHTML = '<p class="text-gray-500 dark:text-gray-400 p-4 text-center">Enter a customer name to search.</p>';
+                return;
+            }
+
+            const filteredOrders = Object.values(orders).filter(order => order.customerName.toLowerCase().includes(query));
+            filteredOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filteredOrders.length === 0) {
+                searchResultsList.innerHTML = `<p class="text-gray-500 dark:text-gray-400 p-4 text-center">No orders found for "${searchInput.value}".</p>`;
+                return;
+            }
+            
+            let customerTotal = 0;
+            filteredOrders.forEach(order => {
+                const amount = order.totalAmount || 0;
+                customerTotal += amount;
+                const itemEl = document.createElement('div');
+                itemEl.className = 'p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700';
+                itemEl.innerHTML = `
+                    <p class="font-semibold">${order.customerName} - <span class="text-green-600 dark:text-green-400">₱${amount.toFixed(2)}</span></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${new Date(order.date + 'T00:00:00').toLocaleDateString()} (${order.quantity} ${order.productName})</p>
+                `;
+                itemEl.addEventListener('click', () => openOrderModal(order.date, order.id));
+                searchResultsList.appendChild(itemEl);
+            });
+
+            const summaryEl = document.createElement('div');
+            summaryEl.className = 'p-3 mt-4 bg-indigo-50 dark:bg-indigo-900/50 rounded-lg text-center font-semibold';
+            summaryEl.innerHTML = `Total income from this search: <span class="text-green-700 dark:text-green-400">₱${customerTotal.toFixed(2)}</span>`;
+            searchResultsList.prepend(summaryEl);
+            showTab('search');
+        }
+
+        function showTab(tabName) {
+            if (tabName === 'recent') {
+                tabRecent.classList.add('active');
+                tabSearch.classList.remove('active');
+                recentOrdersList.classList.remove('hidden');
+                searchResultsList.classList.add('hidden');
+            } else {
+                tabRecent.classList.remove('active');
+                tabSearch.classList.add('active');
+                recentOrdersList.classList.add('hidden');
+                searchResultsList.classList.remove('hidden');
+            }
+        }
+
+        function renderProductList() {
+            productListDiv.innerHTML = '';
+            const productArray = Object.values(products);
+            if (productArray.length === 0) {
+                productListDiv.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No products defined.</p>';
+                return;
+            }
+            productArray.sort((a,b) => a.name.localeCompare(b.name)).forEach(product => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700';
+                item.innerHTML = `
+                    <div>
+                        <p class="font-medium">${product.name}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">₱${product.price.toFixed(2)}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button data-id="${product.id}" class="edit-product-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button data-id="${product.id}" class="delete-product-btn text-red-500 hover:text-red-700"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                productListDiv.appendChild(item);
+            });
+        }
+
+        function populateProductDropdown() {
+            productSelect.innerHTML = '<option value="">-- Select a Product --</option>';
+            const productArray = Object.values(products);
+            productArray.sort((a,b) => a.name.localeCompare(b.name)).forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.name} (₱${product.price.toFixed(2)})`;
+                productSelect.appendChild(option);
+            });
+        }
+
+        function updateTotalAmount() {
+            const productId = productSelect.value;
+            const quantity = parseFloat(orderQuantityInput.value) || 0;
+            if (productId && products[productId]) {
+                const price = products[productId].price;
+                totalAmountDisplay.textContent = `₱${(price * quantity).toFixed(2)}`;
+            } else {
+                totalAmountDisplay.textContent = `₱0.00`;
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        prevMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+        nextMonthBtn.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+        closeOrderModalBtn.addEventListener('click', () => orderModal.classList.add('hidden'));
+        tabRecent.addEventListener('click', () => showTab('recent'));
+        tabSearch.addEventListener('click', () => showTab('search'));
+        searchBtn.addEventListener('click', handleSearch);
+        searchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleSearch(); });
+
+        orderForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const selectedProductId = productSelect.value;
+            const selectedProduct = products[selectedProductId];
+            if (!selectedProduct) {
+                alert("Please select a valid product.");
+                return;
+            }
+            const quantity = parseFloat(orderQuantityInput.value);
+            const orderData = {
+                date: orderDateInput.value,
+                customerName: document.getElementById('customer-name').value.trim(),
+                productId: selectedProductId,
+                productName: selectedProduct.name,
+                pricePerItem: selectedProduct.price,
+                quantity: quantity,
+                totalAmount: selectedProduct.price * quantity,
+            };
+            const orderId = orderIdInput.value;
+            if (orderId) orderData.id = orderId;
+            
+            saveOrder(orderData);
+            orderModal.classList.add('hidden');
+        });
+        
+        deleteOrderBtn.addEventListener('click', () => {
+            const orderId = orderIdInput.value;
+            if (window.confirm('Are you sure you want to delete this order?')) {
+                deleteOrder(orderId);
+                orderModal.classList.add('hidden');
+            }
+        });
+
+        exportCsvBtn.addEventListener('click', () => {
+            const allOrders = Object.values(orders);
+            if (allOrders.length === 0) { alert('No data to export.'); return; }
+            let csvContent = "data:text/csv;charset=utf-8,Date,Customer Name,Product,Quantity,Price Per Item,Total Amount\n";
+            allOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
+            allOrders.forEach(o => { csvContent += `${o.date},"${o.customerName}","${o.productName}",${o.quantity},${o.pricePerItem.toFixed(2)},${o.totalAmount.toFixed(2)}\n`; });
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "orders_export.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        downloadPdfMonthBtn.addEventListener('click', () => {
+            const year = currentDate.getFullYear();
+            const monthName = currentDate.toLocaleString('default', { month: 'long' });
+            const reportTitle = `Monthly Order Summary for ${monthName} ${year}`;
+            const filteredOrders = Object.values(orders).filter(order => {
+                const d = new Date(order.date + 'T00:00:00');
+                return d.getFullYear() === year && d.getMonth() === currentDate.getMonth();
+            });
+            downloadPdf(reportTitle, filteredOrders);
+        });
+
+        // Settings Modal Listeners
+        settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+        closeSettingsModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+        productForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const productData = {
+                id: productIdInput.value,
+                name: productNameInput.value.trim(),
+                price: parseFloat(productPriceInput.value),
+                description: productDescriptionInput.value.trim(),
+            };
+            saveProduct(productData);
+            productForm.reset();
+            productIdInput.value = '';
+        });
+        clearProductFormBtn.addEventListener('click', () => {
+            productForm.reset();
+            productIdInput.value = '';
+        });
+        productListDiv.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            const id = target.dataset.id;
+            if (target.classList.contains('edit-product-btn')) {
+                const product = products[id];
+                productIdInput.value = product.id;
+                productNameInput.value = product.name;
+                productPriceInput.value = product.price;
+                productDescriptionInput.value = product.description || '';
+            } else if (target.classList.contains('delete-product-btn')) {
+                if (window.confirm(`Are you sure you want to delete "${products[id].name}"?`)) {
+                    deleteProduct(id);
+                }
+            }
+        });
+
+        // Order Form Calculation
+        productSelect.addEventListener('change', updateTotalAmount);
+        orderQuantityInput.addEventListener('input', updateTotalAmount);
+
+        // Reports View Listeners
+        reportsBtn.addEventListener('click', () => {
+            mainContent.classList.add('hidden');
+            reportsView.classList.remove('hidden');
+        });
+        backToMainBtn.addEventListener('click', () => {
+            mainContent.classList.remove('hidden');
+            reportsView.classList.add('hidden');
+        });
+        
+        function generateReportHTML(title, data, forPdf = false) {
+            let totalIncome = 0;
+            const headerClasses = forPdf ? 'bg-gray-200' : 'bg-gray-200 dark:bg-gray-700';
+            const borderClasses = forPdf ? 'border-gray-400' : 'border-gray-300 dark:border-gray-600';
+            const footerClasses = forPdf ? 'bg-gray-100' : 'bg-gray-100 dark:bg-gray-700';
+
+            let tableHTML = `
+                <h3 class="text-xl font-bold mb-4">${title}</h3>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="${headerClasses}">
+                            <th class="p-2 border ${borderClasses}">Date</th>
+                            <th class="p-2 border ${borderClasses}">Customer</th>
+                            <th class="p-2 border ${borderClasses}">Product</th>
+                            <th class="p-2 border ${borderClasses} text-right">Qty</th>
+                            <th class="p-2 border ${borderClasses} text-right">Price</th>
+                            <th class="p-2 border ${borderClasses} text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            data.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(order => {
+                totalIncome += order.totalAmount;
+                tableHTML += `
+                    <tr>
+                        <td class="p-2 border ${borderClasses}">${order.date}</td>
+                        <td class="p-2 border ${borderClasses}">${order.customerName}</td>
+                        <td class="p-2 border ${borderClasses}">${order.productName}</td>
+                        <td class="p-2 border ${borderClasses} text-right">${order.quantity}</td>
+                        <td class="p-2 border ${borderClasses} text-right">₱${order.pricePerItem.toFixed(2)}</td>
+                        <td class="p-2 border ${borderClasses} text-right">₱${order.totalAmount.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            tableHTML += `
+                    </tbody>
+                    <tfoot>
+                        <tr class="font-bold ${footerClasses}">
+                            <td colspan="5" class="p-2 border ${borderClasses} text-right">Total Income for this Period:</td>
+                            <td class="p-2 border ${borderClasses} text-right">₱${totalIncome.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            return tableHTML;
+        }
+
+        generateReportBtn.addEventListener('click', () => {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            if (!startDate || !endDate) {
+                alert("Please select both a start and end date.");
+                return;
+            }
+            const reportTitle = `Order Report from ${startDate} to ${endDate}`;
+            const filteredOrders = Object.values(orders).filter(order => order.date >= startDate && order.date <= endDate);
+            
+            const reportHTML = generateReportHTML(reportTitle, filteredOrders, false);
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div class="flex justify-between items-center mb-4">
+                    <button class="generate-insights-btn bg-gradient-to-br from-purple-600 to-blue-500 text-white px-4 py-2 rounded-lg hover:bg-gradient-to-bl"><i class="fas fa-lightbulb mr-2"></i>✨ Generate Customer Insights</button>
+                    <button class="download-report-pdf bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"><i class="fas fa-file-pdf mr-2"></i>Download PDF</button>
+                </div>
+                <div class="report-content">${reportHTML}</div>
+                <div id="insights-output" class="mt-6 p-4 border-t border-gray-200 dark:border-gray-700"></div>
+            `;
+            reportOutput.innerHTML = '';
+            reportOutput.appendChild(container);
+            
+            reportOutput.querySelector('.download-report-pdf').addEventListener('click', () => {
+                downloadPdf(reportTitle, filteredOrders);
+            });
+            reportOutput.querySelector('.generate-insights-btn').addEventListener('click', () => {
+                generateInsights(filteredOrders);
+            });
+        });
+
+        function downloadPdf(title, data) {
+            const printArea = document.getElementById('print-area');
+            const reportHTML = generateReportHTML(title, data, true);
+            
+            // Force light mode and black text for PDF generation for readability
+            printArea.innerHTML = `
+                <style> #pdf-content * { color: #000000 !important; } </style>
+                <div id="pdf-content" class="p-8 bg-white" style="width: 1024px;">
+                    ${reportHTML}
+                </div>
+            `;
+            
+            const contentToCapture = document.getElementById('pdf-content');
+            printArea.classList.remove('hidden');
+            printArea.style.position = 'absolute';
+            printArea.style.left = '-9999px';
+
+            html2canvas(contentToCapture, { 
+                scale: 2, 
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'pt',
+                    format: 'a4'
+                });
+
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                
+                let heightLeft = pdfHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
+
+                while (heightLeft > 0) {
+                  position = -heightLeft;
+                  pdf.addPage();
+                  pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                  heightLeft -= pdf.internal.pageSize.getHeight();
+                }
+                
+                pdf.save(`${title.replace(/ /g, '_')}.pdf`);
+
+                // Cleanup
+                printArea.innerHTML = '';
+                printArea.classList.add('hidden');
+                printArea.style.position = '';
+            }).catch(err => {
+                console.error("PDF Generation Failed: ", err);
+                alert("Sorry, could not generate the PDF.");
+                // Cleanup
+                printArea.innerHTML = '';
+                printArea.classList.add('hidden');
+                printArea.style.position = '';
+            });
+        }
+
+        // --- GEMINI API FUNCTIONS ---
+        async function generateInsights(reportData) {
+            const insightsOutput = document.getElementById('insights-output');
+            insightsOutput.innerHTML = `<p class="flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i>Generating insights...</p>`;
+
+            const simplifiedData = reportData.map(o => ({
+                customer: o.customerName,
+                product: o.productName,
+                date: o.date,
+                amount: o.totalAmount
+            }));
+
+            const prompt = `Analyze the following JSON order data for a small marine products business in the Philippines. Identify the top 3 customers by total spending, point out any interesting purchasing patterns or trends, and suggest one actionable business idea. Present the output in simple, clear language. Data: ${JSON.stringify(simplifiedData)}`;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = "const apiKey = "YOUR_GEMINI_API_KEY_HERE";";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    insightsOutput.innerHTML = `<h4 class="text-lg font-bold mb-2">✨ Customer Insights</h4><div class="prose dark:prose-invert">${text.replace(/\n/g, '<br>')}</div>`;
+                } else {
+                    insightsOutput.textContent = 'Could not generate insights at this time.';
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                insightsOutput.textContent = 'An error occurred while generating insights.';
+            }
+        }
+
+        generateDescBtn.addEventListener('click', async () => {
+            const productName = productNameInput.value;
+            if (!productName) {
+                alert("Please enter a product name first.");
+                return;
+            }
+
+            generateDescBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+            generateDescBtn.disabled = true;
+
+            const prompt = `Create a short, appealing one-sentence marketing description for a product called "${productName}". The business sells marine products in the Philippines.`;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text.replace(/\"/g, ''); // Remove quotes
+                    productDescriptionInput.value = text;
+                } else {
+                   alert('Could not generate a description at this time.');
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                alert('An error occurred while generating the description.');
+            } finally {
+                generateDescBtn.innerHTML = `✨`;
+                generateDescBtn.disabled = false;
+            }
+        });
+
+
+        // --- INITIALIZE APP ---
+        initializeFirebase();
+    </script>
+</body>
+</html>
